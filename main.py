@@ -40,3 +40,28 @@ st.text_input("이 그래프로 알 수 있는 것", key="note1")
 st.divider()
 # 앞으로 그래프를 계속 추가할 구역
 st.header("2. (다음 그래프를 여기에 추가)")
+
+# ── 그래프 2. 장르 안의 영화 (트리맵) ──
+st.header("2. 장르 안의 영화 (트리맵)")
+fig2 = px.treemap(df, path=["장르", "movieNm"], values="total_audi",
+                  hover_data=["total_audi"])
+st.plotly_chart(fig2, width="stretch")
+st.caption("이 그래프로 알 수 있는 것: (한 문장으로 적어 보세요)")
+
+# ── 그래프 3. 총 관객의 분포 (히스토그램) ──
+st.header("3. 총 관객의 분포 (히스토그램)")
+fig3 = px.histogram(df, x="total_audi", nbins=40)
+st.plotly_chart(fig3, width="stretch")
+under_1m = (df["total_audi"] < 1_000_000).sum()
+best = df.loc[df["total_audi"].idxmax()]
+st.write(f"216편 가운데 {under_1m}편이 100만 명 미만입니다. "
+         f"가장 많이 본 영화는 {best['movieNm']}({best['total_audi']:,}명)입니다.")
+st.caption("이 그래프로 알 수 있는 것: (한 문장으로 적어 보세요)")
+
+# ── 그래프 4. 스크린 수와 총 관객 (산점도) ──
+st.header("4. 개봉일 스크린 수와 총 관객 (산점도)")
+fig4 = px.scatter(df, x="first_scrn", y="total_audi", color="장르",
+                  hover_name="movieNm")
+st.plotly_chart(fig4, width="stretch")
+st.caption("이 그래프로 알 수 있는 것: (한 문장으로 적어 보세요)")
+
