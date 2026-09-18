@@ -12,20 +12,27 @@ st.title("🎬 영화 데이터 그래프 도감 2 - 분포와 관계")
 st.markdown("---")
 
 
-# 데이터 로드 및 전처리 함수
+# 데이터 로드 및 강화된 전처리 함수
 @st.cache_data
 def load_data():
     url = "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis_movies.csv"
     df = pd.read_csv(url)
 
-    # 장르 열 전처리: 세로막대 기호(|)로 여러 개 적힌 경우 첫 번째 장르만 추출
-    df["genre"] = df["genre"].astype(str).str.split("|").str[0]
+    # 문자열 공백 제거 및 장르 추출
+    df["genre"] = (
+        df["genre"].astype(str).str.split("|").str[0].str.strip()
+    )
+    df["movieNm"] = df["movieNm"].astype(str).str.strip()
+    df["nation"] = df["nation"].astype(str).str.strip()
 
-    # 결측치 처리 및 수치형 변환
-    df["total_audi"] = pd.to_numeric(df["total_audi"], errors="coerce").fillna(0)
-    df["first_scrn"] = pd.to_numeric(df["first_scrn"], errors="coerce").fillna(0)
-    df["first_week_audi"] = pd.to_numeric(df["first_week_audi"], errors="coerce").fillna(0)
-    df["days_in_top10"] = pd.to_numeric(df["days_in_top10"], errors="coerce").fillna(0)
+    # 결측치 및 문자열 'nan' 제거
+    df = df[~df["genre"].isin(["nan", "None", ""])]
+    df = df[~df["movieNm"].isin(["nan", "None", ""])]
+
+    # 수치형 컬럼 변환 및 결측치 처리
+    num_cols = ["total_audi", "first_scrn", "first_week_audi", "days_in_top10"]
+    for col in num_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
     return df
 
@@ -65,8 +72,12 @@ try:
     # 2. 장르 및 영화별 총 관객수 (Plotly 트리맵)
     st.subheader("2. 장르 및 영화별 총 관객수 분포 (트리맵)")
 
-    # 관객수가 0보다 큰 영화만 필터링 (트리맵 오류 방지)
-    df_treemap = df[df["total_audi"] > 0].copy()
+    # 관객수가 0보다 큰 데이터만 추출 후 장르-영화명 중복 집계 정제
+    df_treemap = (
+        df[df["total_audi"] > 0]
+        .groupby(["genre", "movieNm"], as_index=False)["total_audi"]
+        .sum()
+    )
 
     fig_treemap = px.treemap(
         df_treemap,
@@ -220,8 +231,13 @@ try:
     st.subheader("7. 제작 국가 및 장르별 영화 편수 (선버스트 차트)")
 
     nation_genre_counts = (
-        df.groupby(["nation", "genre"]).size().reset_index(name="movie_count")
+        df.groupby(["nation", "genre"], as_index=False)
+        .size()
+        .rename(columns={"size": "movie_count"})
     )
+    nation_genre_counts = nation_genre_counts[
+        nation_genre_counts["movie_count"] > 0
+    ]
 
     fig_sunburst = px.sunburst(
         nation_genre_counts,
