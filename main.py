@@ -21,6 +21,12 @@ def load_data():
     # 장르 열 전처리: 세로막대 기호(|)로 여러 개 적힌 경우 첫 번째 장르만 추출
     df["genre"] = df["genre"].astype(str).str.split("|").str[0]
 
+    # 결측치 처리 및 수치형 변환
+    df["total_audi"] = pd.to_numeric(df["total_audi"], errors="coerce").fillna(0)
+    df["first_scrn"] = pd.to_numeric(df["first_scrn"], errors="coerce").fillna(0)
+    df["first_week_audi"] = pd.to_numeric(df["first_week_audi"], errors="coerce").fillna(0)
+    df["days_in_top10"] = pd.to_numeric(df["days_in_top10"], errors="coerce").fillna(0)
+
     return df
 
 
@@ -59,17 +65,19 @@ try:
     # 2. 장르 및 영화별 총 관객수 (Plotly 트리맵)
     st.subheader("2. 장르 및 영화별 총 관객수 분포 (트리맵)")
 
+    # 관객수가 0보다 큰 영화만 필터링 (트리맵 오류 방지)
+    df_treemap = df[df["total_audi"] > 0].copy()
+
     fig_treemap = px.treemap(
-        df,
-        path=[px.Constant("전체 영화"), "genre", "movieNm"],
+        df_treemap,
+        path=["genre", "movieNm"],
         values="total_audi",
         color="genre",
         title="장르 및 영화별 총 관객수 비중",
     )
 
     fig_treemap.update_traces(
-        hovertemplate="<b>%{label}</b><br>총 관객수: %{value:,}명",
-        root_color="lightgrey",
+        hovertemplate="<b>%{label}</b><br>총 관객수: %{value:,}명"
     )
 
     st.plotly_chart(fig_treemap, use_container_width=True)
@@ -99,10 +107,9 @@ try:
 
     st.plotly_chart(fig_hist, use_container_width=True)
 
-    # 가장 관객수가 많은 영화 정보 자동 추출
     max_movie_row = df.loc[df["total_audi"].idxmax()]
     max_movie_name = max_movie_row["movieNm"]
-    max_movie_audi = max_movie_row["total_audi"]
+    max_movie_audi = int(max_movie_row["total_audi"])
 
     st.info(
         f"💡 **이 그래프로 알 수 있는 것:** "
@@ -146,7 +153,6 @@ try:
     # 5. 주요 장르별 총 관객수 분포 (Plotly 상자 그림)
     st.subheader("5. 주요 장르별 총 관객수 분포 (상자 그림)")
 
-    # 영화가 10편 이상인 장르만 필터링
     genre_counts_series = df["genre"].value_counts()
     major_genres = genre_counts_series[genre_counts_series >= 10].index
     df_filtered = df[df["genre"].isin(major_genres)]
@@ -243,7 +249,7 @@ try:
     fig_top10 = px.histogram(
         df,
         x="days_in_top10",
-        marginal="box",  # 상단에 박스플롯 표시
+        marginal="box",
         hover_data=["movieNm"],
         title="박스오피스 10위권 체류 일수 분포",
         labels={"days_in_top10": "10위권 체류 일수(일)"},
@@ -254,14 +260,13 @@ try:
 
     st.plotly_chart(fig_top10, use_container_width=True)
 
-    # 주요 통계 수치 추출 (중앙값 및 평균값)
     median_days = df["days_in_top10"].median()
     max_stay_row = df.loc[df["days_in_top10"].idxmax()]
 
     st.info(
         f"💡 **이 그래프로 알 수 있는 것:** "
         f"영화들이 10위권에 머무는 기간의 중앙값은 **약 {median_days:.0f}일**로 대개 2~3주 내외에 몰려 있으며, "
-        f"가장 오랫동안 10위권을 지킨 영화는 **'{max_stay_row['movieNm']}'**(총 {max_stay_row['days_in_top10']}일)임을 알 수 있습니다."
+        f"가장 오랫동안 10위권을 지킨 영화는 **'{max_stay_row['movieNm']}'**(총 {int(max_stay_row['days_in_top10'])}일)임을 알 수 있습니다."
     )
 
     st.markdown("---")
